@@ -11,29 +11,27 @@
     <div style="margin: 0 0 15px">
      <span v-html="answerProgress"></span> | Failed: {{ game.fail }} time
     </div>
-		
-    <div style="margin: 0 0 15px 0"> 
-			{{ game.used_letters }}
-    </div>
 
-    <div 
-			v-if="canPlay"
-			style="margin: 15px 0 15px 0"
-		>
-      <button
-        v-for="(alpha, i) in alphabet"
-        :key="i"
-        @click="isLetterInWord(alpha)"
-      >
-        {{ alpha }}
-      </button>
-    </div>
-		<div v-else>
-			Uh-oh, looks like you lost... better luck next time!
-		</div>
-		
+    <div style="margin: 0 0 15px 0">
+        <div v-if="canPlay && !game.won">
+          <button 
+            v-for="(alpha, i) in alphabet"
+            :key="i"
+            @click="isLetterInWord(alpha)"
+          >
+            {{ alpha }}
+          </button>
+        </div>
+        <div v-else-if="!canPlay && !game.won">
+          Uh-oh, looks like you have lost... better luck next time!
+        </div>
+        <div v-else>
+          Hurray ! You WON ! 
+        </div>
+    </div>		
 
-    <button @click="resetGame()">Reset</button>
+    <button @click="() => $router.go()">Choose a new word</button>
+    <button @click="softResetGame()" v-if="!canPlay">Restart with the same word</button>
   </div>
 </template>
 
@@ -44,10 +42,12 @@ let initGameData = () => ({
     fail: 0,
     used_letters: [],
     right_letters: [],
+    won: false,
 })
 
 export default defineComponent({
   name: "Game",
+  props: ["hidden_word"],
   data: () => ({
     canvas: null,
     context: null,
@@ -61,17 +61,19 @@ export default defineComponent({
       "leftLeg",
       "dead",
     ],
-		hidden_word: "MAE LE BEST",
 		game: initGameData()
   }),
   watch: {
     answerProgress(newValue) {
 			if(newValue === this.hidden_word) {
-				alert('gagné!')
+        this.game.won = true;
 			}
     },
   },
   mounted() {
+    window.addEventListener("keypress", e => {
+      this.isLetterInWord(String.fromCharCode(e.keyCode).toUpperCase())
+    });
     this.initCanva();
   },
   methods: {
@@ -79,11 +81,16 @@ export default defineComponent({
       this.canvas = this.$refs.canvas;
       this.context = this.canvas.getContext("2d");
     },
-    resetGame() {
+    hardResetGame(){
+      this.$router.go();
+    },
+    softResetGame() {
 			this.context.clearRect(0, 0, this.canvas.width, this.canvas.height);
       Object.assign(this.$data.game, initGameData());
     },
     isLetterInWord(letter) {
+      if(this.game.won === true || !this.canPlay) return
+
       if (this.hidden_word.includes(letter) && this.game.used_letters.indexOf(letter) === -1) {
         this.game.used_letters.push(letter);
         this.game.right_letters.push(letter);
